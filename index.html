@@ -1,0 +1,539 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+<title>SentimentAutomated</title>
+<link href="https://fonts.googleapis.com/css2?family=Share+Tech+Mono&family=Barlow+Condensed:wght@400;600;800&display=swap" rel="stylesheet"/>
+<style>
+  :root {
+    --bg:       #0d0d0d;
+    --surface:  #141414;
+    --card:     #1a1a1a;
+    --border:   #2a2a2a;
+    --orange:   #FF6B00;
+    --orange2:  #FF9A3C;
+    --text:     #e8e8e8;
+    --muted:    #888;
+    --neg:      #F08080;
+    --neu:      #F0E68C;
+    --pos:      #66CDAA;
+    --mono:     'Share Tech Mono', monospace;
+    --head:     'Barlow Condensed', sans-serif;
+  }
+
+  *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+  body {
+    background: var(--bg);
+    color: var(--text);
+    font-family: var(--mono);
+    min-height: 100vh;
+    overflow-x: hidden;
+  }
+
+  /* ── scanline overlay ── */
+  body::before {
+    content: '';
+    position: fixed; inset: 0; z-index: 999; pointer-events: none;
+    background: repeating-linear-gradient(
+      0deg, transparent, transparent 2px,
+      rgba(0,0,0,.08) 2px, rgba(0,0,0,.08) 4px
+    );
+  }
+
+  /* ── header ── */
+  header {
+    border-bottom: 1px solid var(--border);
+    padding: 18px 40px;
+    display: flex; align-items: center; gap: 16px;
+    background: var(--surface);
+  }
+  .logo-mark {
+    width: 36px; height: 36px;
+    border: 2px solid var(--orange);
+    display: grid; place-items: center;
+    font-family: var(--head); font-weight: 800; font-size: 18px;
+    color: var(--orange);
+    clip-path: polygon(0 0,calc(100% - 8px) 0,100% 8px,100% 100%,8px 100%,0 calc(100% - 8px));
+  }
+  header h1 {
+    font-family: var(--head); font-weight: 800; font-size: 22px;
+    letter-spacing: 3px; text-transform: uppercase; color: var(--text);
+  }
+  header h1 span { color: var(--orange); }
+  .status-pill {
+    margin-left: auto;
+    font-size: 11px; letter-spacing: 2px;
+    padding: 4px 10px; border: 1px solid var(--orange);
+    color: var(--orange); text-transform: uppercase;
+    animation: blink 2s step-end infinite;
+  }
+  @keyframes blink { 50% { opacity: .4; } }
+
+  /* ── layout ── */
+  main { max-width: 1100px; margin: 0 auto; padding: 40px 24px; }
+
+  /* ── tab bar ── */
+  .tabs {
+    display: flex; gap: 0; border: 1px solid var(--border);
+    margin-bottom: 32px; overflow: hidden;
+  }
+  .tab-btn {
+    flex: 1; padding: 14px; background: transparent; border: none;
+    color: var(--muted); font-family: var(--head); font-weight: 600;
+    font-size: 15px; letter-spacing: 2px; text-transform: uppercase;
+    cursor: pointer; transition: all .2s; border-right: 1px solid var(--border);
+    position: relative; overflow: hidden;
+  }
+  .tab-btn:last-child { border-right: none; }
+  .tab-btn.active {
+    background: var(--orange); color: #000;
+  }
+  .tab-btn::after {
+    content: ''; position: absolute; bottom: 0; left: 0; width: 0; height: 2px;
+    background: var(--orange); transition: width .3s;
+  }
+  .tab-btn:not(.active):hover::after { width: 100%; }
+  .tab-btn:not(.active):hover { color: var(--orange); }
+
+  .tab-panel { display: none; }
+  .tab-panel.active { display: block; }
+
+  /* ── section heading ── */
+  .section-title {
+    font-family: var(--head); font-weight: 800; font-size: 13px;
+    letter-spacing: 3px; text-transform: uppercase; color: var(--orange);
+    margin-bottom: 14px;
+  }
+  .section-title::before { content: '// '; }
+
+  /* ── quick-text panel ── */
+  .input-area {
+    background: var(--card); border: 1px solid var(--border);
+    padding: 20px; position: relative;
+  }
+  .input-area::before {
+    content: 'INPUT';
+    position: absolute; top: -9px; left: 16px;
+    background: var(--card); padding: 0 8px;
+    font-size: 10px; letter-spacing: 3px; color: var(--muted);
+  }
+  textarea {
+    width: 100%; min-height: 140px; resize: vertical;
+    background: var(--bg); border: 1px solid var(--border);
+    color: var(--text); font-family: var(--mono); font-size: 14px;
+    padding: 14px; outline: none; line-height: 1.6;
+    transition: border-color .2s;
+  }
+  textarea:focus { border-color: var(--orange); }
+  textarea::placeholder { color: #444; }
+
+  .btn {
+    display: inline-flex; align-items: center; gap: 8px;
+    padding: 12px 28px; font-family: var(--head); font-weight: 700;
+    font-size: 14px; letter-spacing: 2px; text-transform: uppercase;
+    cursor: pointer; border: none; transition: all .2s; position: relative;
+    overflow: hidden;
+  }
+  .btn-primary {
+    background: var(--orange); color: #000;
+    clip-path: polygon(0 0,calc(100% - 10px) 0,100% 10px,100% 100%,10px 100%,0 calc(100% - 10px));
+  }
+  .btn-primary:hover { background: var(--orange2); transform: translateY(-1px); }
+  .btn-outline {
+    background: transparent; color: var(--orange);
+    border: 1px solid var(--orange);
+  }
+  .btn-outline:hover { background: rgba(255,107,0,.1); }
+  .btn:disabled { opacity: .4; cursor: not-allowed; }
+
+  .btn-row { display: flex; gap: 12px; margin-top: 16px; flex-wrap: wrap; }
+
+  /* ── result badge ── */
+  .result-box {
+    margin-top: 24px;
+    border: 1px solid var(--border);
+    background: var(--card);
+    padding: 24px 28px;
+    display: none;
+    animation: slideIn .3s ease;
+  }
+  @keyframes slideIn { from { opacity: 0; transform: translateY(8px); } to { opacity: 1; } }
+  .result-box.show { display: block; }
+
+  .sentiment-badge {
+    display: inline-block;
+    font-family: var(--head); font-weight: 800; font-size: 32px;
+    letter-spacing: 4px; text-transform: uppercase;
+    padding: 8px 20px; margin-bottom: 12px;
+  }
+  .badge-Positive  { background: var(--pos);  color: #0d1f17; }
+  .badge-Negative  { background: var(--neg);  color: #2a0a0a; }
+  .badge-Neutral   { background: var(--neu);  color: #2a2200; }
+
+  .conf-bar-wrap { margin-top: 12px; }
+  .conf-label { font-size: 12px; color: var(--muted); letter-spacing: 2px; margin-bottom: 6px; }
+  .conf-track {
+    height: 8px; background: var(--border); position: relative; overflow: hidden;
+  }
+  .conf-fill {
+    height: 100%; background: var(--orange);
+    transition: width .6s cubic-bezier(.4,0,.2,1);
+  }
+  .conf-pct { font-size: 22px; font-family: var(--head); font-weight: 800; color: var(--orange); }
+
+  /* ── CSV panel ── */
+  .upload-zone {
+    border: 1px dashed var(--border);
+    background: var(--card); padding: 40px;
+    text-align: center; cursor: pointer;
+    transition: border-color .2s;
+    position: relative;
+  }
+  .upload-zone:hover, .upload-zone.drag-over { border-color: var(--orange); }
+  .upload-zone input { display: none; }
+  .upload-icon { font-size: 36px; margin-bottom: 10px; }
+  .upload-hint { color: var(--muted); font-size: 13px; line-height: 1.8; }
+  .upload-hint strong { color: var(--orange); }
+
+  .col-select-wrap { margin-top: 20px; display: none; }
+  .col-select-wrap.show { display: block; }
+  .form-row { display: flex; gap: 12px; align-items: flex-end; flex-wrap: wrap; margin-top: 12px; }
+
+  select {
+    background: var(--bg); border: 1px solid var(--border);
+    color: var(--text); font-family: var(--mono); font-size: 13px;
+    padding: 10px 14px; outline: none; cursor: pointer;
+    transition: border-color .2s; flex: 1; min-width: 200px;
+  }
+  select:focus { border-color: var(--orange); }
+
+  .mode-toggle { display: flex; gap: 0; border: 1px solid var(--border); }
+  .mode-btn {
+    padding: 10px 16px; background: transparent; border: none;
+    font-family: var(--mono); font-size: 12px; color: var(--muted);
+    cursor: pointer; letter-spacing: 1px; transition: all .2s;
+  }
+  .mode-btn.active { background: rgba(255,107,0,.15); color: var(--orange); }
+
+  /* ── summary grid ── */
+  .summary-grid {
+    display: grid; grid-template-columns: repeat(auto-fit, minmax(150px, 1fr));
+    gap: 12px; margin-top: 24px; display: none;
+  }
+  .summary-grid.show { display: grid; }
+
+  .stat-card {
+    background: var(--card); border: 1px solid var(--border);
+    padding: 16px; text-align: center; position: relative;
+  }
+  .stat-card .val {
+    font-family: var(--head); font-size: 36px; font-weight: 800;
+    line-height: 1; color: var(--orange);
+  }
+  .stat-card .lbl {
+    font-size: 10px; letter-spacing: 2px; color: var(--muted);
+    text-transform: uppercase; margin-top: 6px;
+  }
+  .stat-card.pos .val { color: var(--pos); }
+  .stat-card.neg .val { color: var(--neg); }
+  .stat-card.neu .val { color: var(--neu); }
+
+  /* ── charts grid ── */
+  .charts-grid {
+    display: grid; grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
+    gap: 16px; margin-top: 20px; display: none;
+  }
+  .charts-grid.show { display: grid; }
+
+  .chart-card {
+    background: var(--card); border: 1px solid var(--border); padding: 16px;
+  }
+  .chart-card img { width: 100%; display: block; border-radius: 2px; }
+  .chart-label {
+    font-size: 10px; letter-spacing: 2px; color: var(--muted);
+    text-transform: uppercase; margin-top: 10px; text-align: center;
+  }
+
+  /* ── progress / spinner ── */
+  .progress-wrap { margin-top: 20px; display: none; }
+  .progress-wrap.show { display: block; }
+  .progress-msg {
+    font-size: 12px; letter-spacing: 2px; color: var(--orange);
+    margin-bottom: 8px; animation: blink 1.2s step-end infinite;
+  }
+  .progress-track {
+    height: 4px; background: var(--border);
+    position: relative; overflow: hidden;
+  }
+  .progress-fill {
+    height: 100%; width: 0%; background: var(--orange);
+    transition: width .3s;
+  }
+  .progress-indeterminate {
+    height: 100%;
+    background: linear-gradient(90deg, transparent 0%, var(--orange) 50%, transparent 100%);
+    background-size: 200% 100%;
+    animation: shimmer 1.4s infinite;
+  }
+  @keyframes shimmer { from { background-position: -200% 0; } to { background-position: 200% 0; } }
+
+  /* ── error ── */
+  .err { color: var(--neg); font-size: 13px; margin-top: 12px; display: none; }
+  .err.show { display: block; }
+
+  /* ── download ── */
+  .download-row { margin-top: 20px; display: none; }
+  .download-row.show { display: flex; gap: 12px; flex-wrap: wrap; }
+</style>
+</head>
+<body>
+
+<header>
+  <div class="logo-mark">SA</div>
+  <h1>Sentiment<span>Automated</span></h1>
+  <div class="status-pill">RoBERTa Online</div>
+</header>
+
+<main>
+
+  <!-- tab bar -->
+  <div class="tabs">
+    <button class="tab-btn active" onclick="switchTab('quick', this)">Quick Text</button>
+    <button class="tab-btn" onclick="switchTab('csv', this)">CSV Batch</button>
+  </div>
+
+  <!-- ══════════ QUICK TEXT ══════════ -->
+  <div class="tab-panel active" id="tab-quick">
+    <p class="section-title">Single-text analysis</p>
+
+    <div class="input-area">
+      <textarea id="quickText"
+        placeholder="Paste any text here — tweet, review, comment…"></textarea>
+      <div class="btn-row">
+        <button class="btn btn-primary" onclick="analyzeText()" id="analyzeBtn">
+          ▶ Analyze
+        </button>
+        <button class="btn btn-outline" onclick="clearText()">✕ Clear</button>
+      </div>
+    </div>
+
+    <div class="err" id="quickErr"></div>
+
+    <div class="result-box" id="quickResult">
+      <div class="sentiment-badge" id="sentimentBadge">—</div>
+      <div class="conf-pct" id="confPct">0%</div>
+      <div class="conf-bar-wrap">
+        <div class="conf-label">CONFIDENCE</div>
+        <div class="conf-track"><div class="conf-fill" id="confFill" style="width:0%"></div></div>
+      </div>
+    </div>
+  </div>
+
+  <!-- ══════════ CSV BATCH ══════════ -->
+  <div class="tab-panel" id="tab-csv">
+    <p class="section-title">Batch CSV analysis</p>
+
+    <!-- upload zone -->
+    <div class="upload-zone" id="uploadZone"
+         onclick="document.getElementById('csvFile').click()"
+         ondragover="dragOver(event)" ondragleave="dragLeave(event)" ondrop="drop(event)">
+      <input type="file" id="csvFile" accept=".csv" onchange="handleFile(event)"/>
+      <div class="upload-icon">📂</div>
+      <div class="upload-hint">
+        <strong>Click or drag & drop</strong> a CSV file<br/>
+        Max 50 MB · UTF-8 encoded
+      </div>
+      <div id="fileName" style="margin-top:10px;color:var(--orange);font-size:13px;"></div>
+    </div>
+
+    <!-- column selector -->
+    <div class="col-select-wrap" id="colSelectWrap">
+      <p class="section-title">Configure</p>
+      <div class="form-row">
+        <select id="colSelect">
+          <option value="">— select text column —</option>
+        </select>
+        <div class="mode-toggle">
+          <button class="mode-btn active" id="modeLimited" onclick="setMode('limited')">5 000 rows</button>
+          <button class="mode-btn" id="modeFull" onclick="setMode('full')">Full dataset</button>
+        </div>
+        <button class="btn btn-primary" onclick="runCSV()" id="runBtn">▶ Run Analysis</button>
+      </div>
+    </div>
+
+    <!-- progress -->
+    <div class="progress-wrap" id="csvProgress">
+      <div class="progress-msg" id="progressMsg">PROCESSING…</div>
+      <div class="progress-track"><div class="progress-indeterminate"></div></div>
+    </div>
+
+    <div class="err" id="csvErr"></div>
+
+    <!-- summary stats -->
+    <div class="summary-grid" id="summaryGrid">
+      <div class="stat-card"><div class="val" id="sTot">—</div><div class="lbl">Total Rows</div></div>
+      <div class="stat-card pos"><div class="val" id="sPos">—</div><div class="lbl">Positive</div></div>
+      <div class="stat-card neu"><div class="val" id="sNeu">—</div><div class="lbl">Neutral</div></div>
+      <div class="stat-card neg"><div class="val" id="sNeg">—</div><div class="lbl">Negative</div></div>
+      <div class="stat-card"><div class="val" id="sConf">—</div><div class="lbl">Avg Confidence</div></div>
+      <div class="stat-card"><div class="val" id="sHigh">—</div><div class="lbl">&gt;90% Confidence</div></div>
+    </div>
+
+    <!-- charts -->
+    <div class="charts-grid" id="chartsGrid">
+      <div class="chart-card"><img id="chartBar" src="" alt=""/><div class="chart-label">Sentiment Count</div></div>
+      <div class="chart-card"><img id="chartPie" src="" alt=""/><div class="chart-label">Proportion</div></div>
+      <div class="chart-card"><img id="chartBox" src="" alt=""/><div class="chart-label">Confidence Distribution</div></div>
+    </div>
+
+    <!-- download -->
+    <div class="download-row" id="downloadRow">
+      <a class="btn btn-outline" href="/download/results" download>⬇ Download results.csv</a>
+    </div>
+  </div>
+
+</main>
+
+<script>
+  // ── Tab switching ─────────────────────────────────────────────────────────
+  function switchTab(name, btn) {
+    document.querySelectorAll('.tab-btn').forEach(b => b.classList.remove('active'));
+    document.querySelectorAll('.tab-panel').forEach(p => p.classList.remove('active'));
+    btn.classList.add('active');
+    document.getElementById('tab-' + name).classList.add('active');
+  }
+
+  // ── Quick text ────────────────────────────────────────────────────────────
+  async function analyzeText() {
+    const text = document.getElementById('quickText').value.trim();
+    const err  = document.getElementById('quickErr');
+    err.classList.remove('show');
+    if (!text) { showErr(err, 'Please enter some text.'); return; }
+
+    const btn = document.getElementById('analyzeBtn');
+    btn.disabled = true; btn.textContent = '… Analyzing';
+
+    try {
+      const res = await fetch('/analyze/text', {
+        method: 'POST',
+        headers: {'Content-Type': 'application/json'},
+        body: JSON.stringify({ text })
+      });
+      const data = await res.json();
+      if (data.error) { showErr(err, data.error); return; }
+      renderQuickResult(data.sentiment, data.confidence);
+    } catch(e) { showErr(err, 'Server error: ' + e.message); }
+    finally { btn.disabled = false; btn.textContent = '▶ Analyze'; }
+  }
+
+  function renderQuickResult(sentiment, confidence) {
+    const badge = document.getElementById('sentimentBadge');
+    badge.textContent = sentiment;
+    badge.className = 'sentiment-badge badge-' + sentiment;
+    document.getElementById('confPct').textContent = confidence + '%';
+    document.getElementById('confFill').style.width = confidence + '%';
+    document.getElementById('quickResult').classList.add('show');
+  }
+
+  function clearText() {
+    document.getElementById('quickText').value = '';
+    document.getElementById('quickResult').classList.remove('show');
+    document.getElementById('quickErr').classList.remove('show');
+  }
+
+  // ── CSV upload ────────────────────────────────────────────────────────────
+  let uploadedFilename = null;
+  let analysisMode = 'limited';
+
+  function dragOver(e)  { e.preventDefault(); document.getElementById('uploadZone').classList.add('drag-over'); }
+  function dragLeave(e) { document.getElementById('uploadZone').classList.remove('drag-over'); }
+  function drop(e)      { e.preventDefault(); dragLeave(e); processFile(e.dataTransfer.files[0]); }
+  function handleFile(e){ processFile(e.target.files[0]); }
+
+  async function processFile(file) {
+    if (!file || !file.name.endsWith('.csv')) {
+      showErr(document.getElementById('csvErr'), 'Please upload a .csv file.');
+      return;
+    }
+    document.getElementById('fileName').textContent = '📄 ' + file.name;
+    const fd = new FormData();
+    fd.append('file', file);
+
+    try {
+      const res  = await fetch('/columns', { method: 'POST', body: fd });
+      const data = await res.json();
+      if (data.error) { showErr(document.getElementById('csvErr'), data.error); return; }
+      uploadedFilename = data.filename;
+      const sel = document.getElementById('colSelect');
+      sel.innerHTML = '<option value="">— select text column —</option>';
+      data.columns.forEach(c => {
+        const o = document.createElement('option'); o.value = c; o.textContent = c; sel.appendChild(o);
+      });
+      document.getElementById('colSelectWrap').classList.add('show');
+    } catch(e) { showErr(document.getElementById('csvErr'), 'Upload failed: ' + e.message); }
+  }
+
+  function setMode(m) {
+    analysisMode = m;
+    document.getElementById('modeLimited').classList.toggle('active', m === 'limited');
+    document.getElementById('modeFull').classList.toggle('active', m === 'full');
+  }
+
+  async function runCSV() {
+    const col = document.getElementById('colSelect').value;
+    const err = document.getElementById('csvErr');
+    err.classList.remove('show');
+    if (!uploadedFilename) { showErr(err, 'Please upload a CSV file first.'); return; }
+    if (!col) { showErr(err, 'Please select a text column.'); return; }
+
+    document.getElementById('runBtn').disabled = true;
+    document.getElementById('csvProgress').classList.add('show');
+    document.getElementById('summaryGrid').classList.remove('show');
+    document.getElementById('chartsGrid').classList.remove('show');
+    document.getElementById('downloadRow').classList.remove('show');
+
+    const fd = new FormData();
+    fd.append('filename', uploadedFilename);
+    fd.append('column', col);
+    fd.append('mode', analysisMode);
+
+    try {
+      const res  = await fetch('/analyze/csv', { method: 'POST', body: fd });
+      const data = await res.json();
+      if (data.error) { showErr(err, data.error); return; }
+      renderCSVResult(data.summary, data.charts);
+    } catch(e) { showErr(err, 'Analysis failed: ' + e.message); }
+    finally {
+      document.getElementById('csvProgress').classList.remove('show');
+      document.getElementById('runBtn').disabled = false;
+    }
+  }
+
+  function renderCSVResult(s, charts) {
+    document.getElementById('sTot').textContent  = s.total.toLocaleString();
+    document.getElementById('sPos').textContent  = s.positive.toLocaleString();
+    document.getElementById('sNeu').textContent  = s.neutral.toLocaleString();
+    document.getElementById('sNeg').textContent  = s.negative.toLocaleString();
+    document.getElementById('sConf').textContent = s.avg_confidence + '%';
+    document.getElementById('sHigh').textContent = s.high_confidence.toLocaleString();
+    document.getElementById('summaryGrid').classList.add('show');
+
+    document.getElementById('chartBar').src = 'data:image/png;base64,' + charts.bar;
+    document.getElementById('chartPie').src = 'data:image/png;base64,' + charts.pie;
+    document.getElementById('chartBox').src = 'data:image/png;base64,' + charts.box;
+    document.getElementById('chartsGrid').classList.add('show');
+    document.getElementById('downloadRow').classList.add('show');
+  }
+
+  // ── helpers ───────────────────────────────────────────────────────────────
+  function showErr(el, msg) { el.textContent = '⚠ ' + msg; el.classList.add('show'); }
+
+  // allow Enter key in textarea to NOT submit, but Shift+Enter = newline (default)
+  document.getElementById('quickText').addEventListener('keydown', e => {
+    if (e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); analyzeText(); }
+  });
+</script>
+</body>
+</html>
